@@ -44,7 +44,10 @@ fun App() {
                                     <td>Cell 4</td>
                                 </tr>
                 </table>
-                <span class="math-tex">\\(\\frac {-b\\pm \\sqrt {{b}^{2}-4ac}} {2a}>\\frac {dy} {dx}\\)</span><p>你们好啊</p></p>
+                <br>
+           <span class="math-tex">\\(\\frac {-b\\pm \\sqrt {{b}^{2}-4ac}} {2a}>\\frac {dy} {dx}\\)</span>
+           
+           <p>你们好啊</p></p>
                 """.trim()
                 )
             )

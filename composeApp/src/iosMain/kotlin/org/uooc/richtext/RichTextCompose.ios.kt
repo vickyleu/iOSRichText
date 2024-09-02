@@ -3,6 +3,17 @@
 
 package org.uooc.richtext
 
+//import cocoapods.DTCoreText.DTAttributedLabel
+//import cocoapods.DTCoreText.DTAttributedTextContentView
+//import cocoapods.DTCoreText.DTAttributedTextContentViewDelegateProtocol
+//import cocoapods.DTCoreText.DTCoreTextLayouter
+//import cocoapods.DTCoreText.DTHTMLAttributedStringBuilder
+//import cocoapods.DTCoreText.DTImageTextAttachment
+//import cocoapods.DTCoreText.DTLazyImageView
+//import cocoapods.DTCoreText.DTLazyImageViewDelegateProtocol
+//import cocoapods.DTCoreText.DTTextAttachment
+//import cocoapods.DTCoreText.create
+//import cocoapods.DTFoundation.DTAnimatedGIFFromData
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,23 +42,12 @@ import androidx.compose.ui.util.fastMapIndexedNotNull
 import androidx.compose.ui.viewinterop.UIKitInteropProperties
 import androidx.compose.ui.viewinterop.UIKitView
 import cocoapods.DTFoundation.DTAnimatedGIFFromData
-import uooc.DTCoreText.*
-//import cocoapods.DTCoreText.DTAttributedLabel
-//import cocoapods.DTCoreText.DTAttributedTextContentView
-//import cocoapods.DTCoreText.DTAttributedTextContentViewDelegateProtocol
-//import cocoapods.DTCoreText.DTCoreTextLayouter
-//import cocoapods.DTCoreText.DTHTMLAttributedStringBuilder
-//import cocoapods.DTCoreText.DTImageTextAttachment
-//import cocoapods.DTCoreText.DTLazyImageView
-//import cocoapods.DTCoreText.DTLazyImageViewDelegateProtocol
-//import cocoapods.DTCoreText.DTTextAttachment
-//import cocoapods.DTCoreText.create
-//import cocoapods.DTFoundation.DTAnimatedGIFFromData
 import com.fleeksoft.ksoup.Ksoup
 import com.fleeksoft.ksoup.select.Elements
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.CValue
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.ObjCAction
 import kotlinx.cinterop.ObjCClass
 import kotlinx.cinterop.readValue
 import kotlinx.cinterop.useContents
@@ -64,9 +64,11 @@ import platform.CoreGraphics.CGSizeEqualToSize
 import platform.CoreGraphics.CGSizeMake
 import platform.CoreGraphics.CGSizeZero
 import platform.Foundation.NSAttributedString
+import platform.Foundation.NSCoder
 import platform.Foundation.NSData
 import platform.Foundation.NSMakeRange
 import platform.Foundation.NSPredicate
+import platform.Foundation.NSSelectorFromString
 import platform.Foundation.NSString
 import platform.Foundation.NSURL
 import platform.Foundation.NSUTF8StringEncoding
@@ -80,11 +82,26 @@ import platform.UIKit.UIColor
 import platform.UIKit.UIImage
 import platform.UIKit.UILabel
 import platform.UIKit.UIScreen
+import platform.UIKit.UITapGestureRecognizer
 import platform.UIKit.UIView
 import platform.UIKit.UIViewAutoresizingFlexibleHeight
 import platform.UIKit.UIViewAutoresizingFlexibleWidth
 import platform.UIKit.UIViewContentMode
 import platform.darwin.NSObject
+import uooc.DTCoreText.CGFLOAT_HEIGHT_UNKNOWN
+import uooc.DTCoreText.DTAttributedLabel
+import uooc.DTCoreText.DTAttributedTextContentView
+import uooc.DTCoreText.DTAttributedTextContentViewDelegateProtocol
+import uooc.DTCoreText.DTCoreTextLayouter
+import uooc.DTCoreText.DTHTMLAttributedStringBuilder
+import uooc.DTCoreText.DTHTMLAttributedStringBuilderWillFlushCallback
+import uooc.DTCoreText.DTImageTextAttachment
+import uooc.DTCoreText.DTLazyImageView
+import uooc.DTCoreText.DTLazyImageViewDelegateProtocol
+import uooc.DTCoreText.DTTextAttachment
+import uooc.DTCoreText.DTWillFlushBlockCallBack
+import uooc.DTCoreText.NSBaseURLDocumentOption
+import uooc.DTCoreText.TagRandererView
 import kotlin.collections.set
 import kotlin.experimental.ExperimentalNativeApi
 
@@ -266,6 +283,7 @@ actual fun RichTextPlatformView(
                     }
                     Ksoup.parse(htmlFull.outerHtml()).outerHtml().let {
                         NSString.create(string = it)
+
                         /* */
                         /**
                          * //Html->富文本NSAttributedString
@@ -299,6 +317,19 @@ actual fun RichTextPlatformView(
                 val kvo = remember(attrString) {
                     object : NSObject(), DTAttributedTextContentViewDelegateProtocol,
                         DTLazyImageViewDelegateProtocol {
+
+
+                        @ObjCAction
+                        @Suppress("unused")
+                        fun tap(sender: UITapGestureRecognizer) {
+                            val view = (sender.view as? DTLazyImageView) ?: return
+                            val imageURL = NSString.create(
+                                format = "%@",
+                                args = arrayOf(view.url)
+                            ).toString()
+                            state.value.clickImages(images, images.indexOf(imageURL))
+                        }
+
                         /**
                          * 图片占位
                          */
@@ -307,8 +338,9 @@ actual fun RichTextPlatformView(
                             viewForAttachment: DTTextAttachment?,
                             frame: CValue<CGRect>
                         ): UIView? {
-                            val attachment = (viewForAttachment?:return null)
-                            val isImage = attachment.isKindOfClass(DTImageTextAttachment.`class`() as ObjCClass)
+                            val attachment = (viewForAttachment ?: return null)
+                            val isImage =
+                                attachment.isKindOfClass(DTImageTextAttachment.`class`() as ObjCClass)
                             val isTable = attachment is DTTableTextAttachment
                             val isMathTex = attachment is MathTextAttachment
                             println("viewForAttachment:isImage=${attachment}")
@@ -317,6 +349,11 @@ actual fun RichTextPlatformView(
                                     format = "%@",
                                     args = arrayOf(viewForAttachment.contentURL)
                                 )
+                                imageURL.toString().apply {
+                                    if (!images.contains(this)) {
+                                        images.add(this)
+                                    }
+                                }
                                 val imageView = DTLazyImageView(frame = frame)
                                 imageView.delegate = this
                                 imageView.contentMode =
@@ -325,6 +362,14 @@ actual fun RichTextPlatformView(
                                 imageView.image = viewForAttachment.image
                                 imageView.url = viewForAttachment.contentURL
                                 imageView.clipsToBounds = true
+
+                                imageView.userInteractionEnabled = true
+                                imageView.addGestureRecognizer(
+                                    UITapGestureRecognizer(
+                                        target = this,
+                                        action = NSSelectorFromString("imageTap:")
+                                    )
+                                )
                                 if (imageURL.containsString("gif")) {
                                     coroutineScope.launch {
                                         withContext(Dispatchers.IO) {
@@ -337,14 +382,29 @@ actual fun RichTextPlatformView(
                                     }
                                 }
                                 return imageView
-
-                            }
-                            else if(isTable){
-                                return TagRandererView(frame = frame, withAttachment = attachment as DTTableTextAttachment)
-                            }else if(isMathTex){
+                            } else if (isTable) {
+                                return TagRandererView(
+                                    frame = frame,
+                                    withAttachment = attachment as DTTableTextAttachment
+                                )
+                            } else if (isMathTex) {
                                 val math = attachment as MathTextAttachment
-                                val latex= math.latex
-                                return TagRandererView(frame = frame, withAttachment = attachment as DTTableTextAttachment)
+                                val latex = math.latex
+                                return UIView(frame = frame).apply {
+                                    addSubview(cocoapods.iosMath.MTMathUILabel(frame = CGRectMake(
+                                        0.0,
+                                        0.0,
+                                        frame.useContents { size.width },
+                                        frame.useContents { size.height }
+                                    )).apply {
+                                        this.latex = latex
+                                        this.labelMode =
+                                            cocoapods.iosMath.MTMathUILabelMode.kMTMathUILabelModeDisplay
+                                        this.fontSize = 20.0
+                                        this.textColor = UIColor.blackColor
+                                        this.sizeToFit()
+                                    })
+                                }
                             } else {
                                 println("viewForAttachment:${viewForAttachment}")
                                 return null
@@ -360,19 +420,26 @@ actual fun RichTextPlatformView(
                             identifier: String?,
                             frame: CValue<CGRect>
                         ): UIView {
-                            return UILabel().apply {
+                            return ClickButton(frame = frame).apply {
                                 this.text = identifier
                                 this.textColor = UIColor.blueColor
                                 this.backgroundColor = UIColor.purpleColor
                                 this.alpha = 0.5
-                                this.setFrame(frame)
                                 this.userInteractionEnabled = true
                                 this.clipsToBounds = true
-                                /*this.addGestureRecognizer(
-                                    UITapGestureRecognizer(target = this, action = NSSelectorFromString("tap:"))
-                                )*/
+                                val url = viewForLink?.absoluteString ?: ""
+                                this.tapCallback = {
+                                    state.value.clickUrl(url)
+                                }
+                                this.addGestureRecognizer(
+                                    UITapGestureRecognizer(
+                                        target = this,
+                                        action = NSSelectorFromString("tap:")
+                                    )
+                                )
                             }
                         }
+
 
                         /**
                          * 懒加载获取图片大小
@@ -428,10 +495,10 @@ actual fun RichTextPlatformView(
                                     val heightPx = widthPx * imgSizeScale
                                     val newSize = if (size.width > maxRect.width) {
                                         println("图片宽超过最大宽度:${size.width}x${size.height}")
-                                         Size(widthPx, heightPx)
+                                        Size(widthPx, heightPx)
                                     } else {
                                         println("图片宽不超过最大宽度:${size.width}x${size.height}")
-                                         Size(size.width, size.height)
+                                        Size(size.width, size.height)
                                     }
                                     imageSizeMap[key] = newSize
 
@@ -478,7 +545,7 @@ actual fun RichTextPlatformView(
                          * 修改为获取图片宽高,保存在一个map中,然后设置图片宽高
                          */
                         suspend fun configNoSizeImageView(url: String): Size? {
-                           return withContext(Dispatchers.IO) {
+                            return withContext(Dispatchers.IO) {
                                 return@withContext NSData.dataWithContentsOfURL(
                                     NSURL.URLWithString(
                                         URLString = url
@@ -486,9 +553,18 @@ actual fun RichTextPlatformView(
                                 )
                                     ?.let {
                                         val image = UIImage.imageWithData(it)
-                                        println("下载到图片没? ${image?.size?.useContents { this.let { 
-                                            Size(it.width.toFloat(), it.height.toFloat())
-                                        } }}")
+                                        println(
+                                            "下载到图片没? ${
+                                                image?.size?.useContents {
+                                                    this.let {
+                                                        Size(
+                                                            it.width.toFloat(),
+                                                            it.height.toFloat()
+                                                        )
+                                                    }
+                                                }
+                                            }"
+                                        )
                                         image?.size?.useContents {
                                             this.let {
                                                 Size(it.width.toFloat(), it.height.toFloat())
@@ -517,14 +593,16 @@ actual fun RichTextPlatformView(
                     )
                     label.autoresizingMask =
                         UIViewAutoresizingFlexibleWidth or UIViewAutoresizingFlexibleHeight
-                    label.backgroundColor = UIColor.redColor
+                    label.backgroundColor = UIColor.clearColor
                     label.setDelegate(kvo)
                     label.apply {
                         val maxRect = Rect(0.0f, 0.0f, maxWidth.value, CGFLOAT_HEIGHT_UNKNOWN)
-                        val measureHeight = htmlString.getAttributedTextHeightHtml(maxRect,this@with)
+                        val measureHeight =
+                            htmlString.getAttributedTextHeightHtml(maxRect, this@with)
                         println("新高度:${measureHeight}")
                         height = max(measureHeight.dp, 10.dp)
-                        this.attributedString = htmlString.getAttributedStringWithHtml(maxRect.width,this@with)
+                        this.attributedString =
+                            htmlString.getAttributedStringWithHtml(maxRect.width, this@with)
                         attributedLabel = this
 
                     }
@@ -559,22 +637,45 @@ actual fun RichTextPlatformView(
 }
 
 
+class ClickButton : UILabel {
+    constructor(coder: NSCoder) : super(coder)
+    @OptIn(ExperimentalForeignApi::class)
+    constructor(frame: CValue<CGRect>) : super(frame)
+
+    var tapCallback: () -> Unit = {}
+
+    @ObjCAction
+    @Suppress("unused")
+    fun tap(sender: UITapGestureRecognizer) {
+        val view = (sender.view as? UILabel) ?: return
+        val identifier = view.text ?: ""
+        tapCallback()
+    }
+
+}
+
 /**
  * Html转NSAttributedString
  */
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
-private fun NSString.getAttributedStringWithHtml(maxWidth: Float, density: Density): NSAttributedString {
+private fun NSString.getAttributedStringWithHtml(
+    maxWidth: Float,
+    density: Density
+): NSAttributedString {
     val data = this.dataUsingEncoding(NSUTF8StringEncoding) ?: NSData.new()!!
-    val options = mapOf<Any?,Any?>(NSBaseURLDocumentOption to data)
-    val stringBuilder = DTHTMLAttributedStringBuilder(hTML = data,
+    val options = mapOf<Any?, Any?>(NSBaseURLDocumentOption to data)
+    val stringBuilder = DTHTMLAttributedStringBuilder(
+        hTML = data,
         options = options,
-        documentAttributes = null)
+        documentAttributes = null
+    )
     //  表格处理
-    stringBuilder.registerTagHandlers(tagHandlers = TableHandler(maxWidth,density).allHandlers())
-    stringBuilder.registerTagHandlers(tagHandlers = listOf(MathHandler(maxWidth,density)))
+    stringBuilder.registerTagHandlers(tagHandlers = TableHandler(maxWidth, density).allHandlers())
+    stringBuilder.registerTagHandlers(tagHandlers = listOf(MathHandler(maxWidth, density)))
 
-    val callbackBlock = options[DTWillFlushBlockCallBack] as? DTHTMLAttributedStringBuilderWillFlushCallback
-    if(callbackBlock!=null){
+    val callbackBlock =
+        options[DTWillFlushBlockCallBack] as? DTHTMLAttributedStringBuilderWillFlushCallback
+    if (callbackBlock != null) {
         stringBuilder.setWillFlushCallback(callbackBlock)
     }
     val attributedString = stringBuilder.generatedAttributedString()
