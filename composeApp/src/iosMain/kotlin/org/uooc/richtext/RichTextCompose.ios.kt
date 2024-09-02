@@ -168,7 +168,7 @@ actual fun RichTextPlatformView(
                         }
                 }
                 val coroutineScope = rememberCoroutineScope()
-                var htmlString = remember(attrString) {
+                val htmlString = remember(attrString) {
                     val html = Ksoup.parse(attrString).outerHtml()
                     val htmlFull = Ksoup.parse(html)
                     htmlFull.head().apply {
@@ -176,28 +176,6 @@ actual fun RichTextPlatformView(
                             this.attr("name", "viewport")
                             this.attr("content", "width=device-width, initial-scale=1.0")
                         }
-
-                        this.appendElement("script").apply {
-                            this.appendText(
-                                """
-                                  <strong>MathJax = {
-                                    tex: {
-                                      inlineMath: [['${'$'}', '${'$'}'], ['\\(', '\\)']]
-                                    }
-                                  };</strong>
-                              """.trimIndent()
-                            )
-                        }
-                        this.appendElement("script").apply {
-                            this.attr("type", "text/javascript")
-                            this.attr("id", "MathJax-script")
-                            this.attr("async", "")
-                            this.attr(
-                                "src",
-                                "https://cdn.bootcss.com/mathjax/3.0.5/es5/tex-mml-chtml.js"
-                            )
-                        }
-
                         this.appendElement("style").apply {
                             this.attr("type", "text/css")
                             this.appendText(
@@ -283,34 +261,6 @@ actual fun RichTextPlatformView(
                     }
                     Ksoup.parse(htmlFull.outerHtml()).outerHtml().let {
                         NSString.create(string = it)
-
-                        /* */
-                        /**
-                         * //Html->富文本NSAttributedString
-                         *//*
-                        val htmlString = NSString.create(string = it)
-                        val data = htmlString.dataUsingEncoding(NSUTF8StringEncoding)?: NSData.new()!!
-                        val attributedString = NSAttributedString.create(data, documentAttributes = null)
-                        *//*htmlString.dataUsingEncoding(NSUTF8StringEncoding)!!.let { data ->
-                            val options = mutableMapOf<Any?, Any?>()
-                            options[DTUseiOS6Attributes] = true.toNSNumber()
-                            options[DTDefaultFontSize] = 16.0.toNSNumber()
-                            options[DTDefaultFontFamily] = "Helvetica".toNSString()
-                            DTHTMLAttributedStringBuilder(
-                                hTML = data,
-                                options = options,
-                                documentAttributes = null
-                            ).generatedAttributedString()
-                        }*//*
-                        *//*NSAttributedString.create(
-                            data =
-                                .dataUsingEncoding(NSUTF8StringEncoding)!!, options = mapOf(
-                                NSDocumentTypeDocumentAttribute to NSHTMLTextDocumentType,
-                                NSCharacterEncodingDocumentAttribute to NSUTF8StringEncoding
-                            ), documentAttributes = null, error = null
-                        )!!*//*
-
-                        attributedString?:NSAttributedString.create(string = "")*/
                     }
                 }
 
@@ -699,7 +649,6 @@ private fun NSString.getAttributedTextHeightHtml(maxRect: Rect, density: Density
         ),
         range = entireString
     )
-
     val measureHeight = layoutFrame?.frame?.useContents { this.size.height.toFloat() } ?: 0.0f
     println("layoutFrame:${measureHeight}")
     return measureHeight

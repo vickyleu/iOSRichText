@@ -7,6 +7,6 @@ use_frameworks! :linkage => :static
 inhibit_all_warnings!
 # Pods for iosApp
  pod 'composeApp', :path => '../composeApp/'
-    pod 'DTCoreText', :git => "https://github.com/vickyleu/DTCoreText.git"
+ pod 'DTCoreText', :git => "https://github.com/vickyleu/DTCoreText.git"
 end
 
