@@ -1,0 +1,12 @@
+# Uncomment the next line to define a global platform for your project
+platform :ios, '13.0'
+source 'https://cdn.cocoapods.org'
+target 'iosApp' do
+# Comment the next line if you don't want to use dynamic frameworks
+use_frameworks! :linkage => :static
+inhibit_all_warnings!
+# Pods for iosApp
+ pod 'composeApp', :path => '../composeApp/'
+    pod 'DTCoreText', :git => "https://github.com/vickyleu/DTCoreText.git"
+end
+
