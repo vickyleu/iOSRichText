@@ -5,6 +5,16 @@
 xcuserdata
 !src/**/build/
 local.properties
+
+iosApp/Pods
+iosApp/Podfile.lock
+iosApp/iosApp.xcworkspace/contents.xcworkspacedata
+.build/
+.idea/
+*.ipr
+.gradle/
+
+
 .idea
 .DS_Store
 captures
